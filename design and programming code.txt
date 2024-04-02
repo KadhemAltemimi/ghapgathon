@@ -1,0 +1,54 @@
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+from scapy.all import *
+import ipaddress
+import sys
+
+# Suppress CryptographyDeprecationWarning
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
+ports = [25, 80, 53, 443, 445, 8080, 8443]
+
+def syn_scan(host):
+    open_ports = []
+    try:
+        ans, unans = sr(
+            IP(dst=host) /
+            TCP(sport=33333, dport=ports, flags="S"),
+            timeout=2,
+            verbose=0
+        )
+        for (s, r,) in ans:
+            if s[TCP].dport == r[TCP].sport and r[TCP].flags == "SA":
+                open_ports.append(s[TCP].dport)
+        if open_ports:
+            print(f"Open ports at {host}: {open_ports}")
+            # Add IDS logic here
+    except Exception as e:
+        print(f"Error occurred during SYN scan of {host}: {str(e)}")
+
+def dns_scan(host):
+    try:
+        ans, unans = sr(
+            IP(dst=host) /
+            UDP(dport=53) /
+            DNS(rd=1, qd=DNSQR(qname="google.com")),
+            timeout=2,
+            verbose=0
+        )
+        if ans and ans[UDP]:
+            print(f"DNS Server found at {host}")
+            # Add IDS logic here
+    except Exception as e:
+        print(f"Error occurred during DNS scan of {host}: {str(e)}")
+
+if __name__ == "__main__":
+    host = input("Enter IP Address: ")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        print("Invalid address")
+        sys.exit(-1)
+
+    syn_scan(host)
+    dns_scan(host)
